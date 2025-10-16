@@ -100,6 +100,7 @@ class WiFiManager:
         """Scan networks using nmcli"""
         try:
             # Rescan for fresh results on the specified interface
+            logger.info(f"nmcli device wifi rescan ifname {self.scan_interface}")
             subprocess.run(['nmcli', 'device', 'wifi', 'rescan', 'ifname', self.scan_interface], 
                          capture_output=True, timeout=10)
             time.sleep(2)  # Wait for scan to complete
@@ -109,6 +110,8 @@ class WiFiManager:
                                    'device', 'wifi', 'list', 'ifname', self.scan_interface], 
                                   capture_output=True, text=True, check=True, timeout=10)
             
+            logger.info(f"Scan result {result}")
+
             networks = []
             seen_ssids = set()
             
