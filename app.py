@@ -110,6 +110,22 @@ def disconnect():
             'error': str(e)
         }), 500
 
+@app.route('/api/interface-info')
+def get_interface_info():
+    """API endpoint to get WiFi interface information"""
+    try:
+        info = wifi_manager.get_scan_interface_info()
+        return jsonify({
+            'success': True,
+            'interface_info': info
+        })
+    except Exception as e:
+        logger.error(f"Failed to get interface info: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @socketio.on('connect')
 def handle_connect():
     """Handle WebSocket connection"""

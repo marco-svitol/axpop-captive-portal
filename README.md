@@ -122,6 +122,41 @@ sudo python run.py
 - `CAPTIVE_PORTAL_PORT`: Port to run the server (default: 80)
 - `CAPTIVE_PORTAL_HOST`: Host to bind to (default: 0.0.0.0)
 
+### Application Configuration (config.json)
+
+The application uses a `config.json` file for configuration. Create this file in the same directory as `app.py`:
+
+```json
+{
+    "wifi_scan_interface": "wlan1",
+    "captive_portal": {
+        "host": "0.0.0.0",
+        "port": 8080
+    },
+    "logging": {
+        "level": "INFO"
+    }
+}
+```
+
+#### Configuration Options:
+
+- **`wifi_scan_interface`**: Specifies which WiFi interface to use for scanning networks (default: "wlan1")
+  - This is important when you have multiple WiFi interfaces (e.g., wlan0 for the captive portal, wlan1 for scanning)
+  - The application will still auto-detect the interface for making connections
+  
+- **`captive_portal.host`**: Host address to bind the web server to
+- **`captive_portal.port`**: Port number for the web server
+- **`logging.level`**: Logging level (DEBUG, INFO, WARNING, ERROR)
+
+#### Multi-Interface Setup:
+
+When running on a Raspberry Pi with two WiFi interfaces:
+- **wlan0**: Used to broadcast the captive portal access point
+- **wlan1**: Used to scan for and connect to external WiFi networks
+
+This separation allows the captive portal to remain accessible while scanning for networks on a different interface.
+
 ### Access Point Configuration
 
 If you want to use the Raspberry Pi as a WiFi access point for the captive portal:
@@ -162,6 +197,7 @@ The application provides REST API endpoints for programmatic access:
 - `POST /api/connect` - Connect to a network
 - `GET /api/status` - Get connection status
 - `GET /api/disconnect` - Disconnect from current network
+- `GET /api/interface-info` - Get WiFi interface configuration information
 
 ### Example API Usage
 

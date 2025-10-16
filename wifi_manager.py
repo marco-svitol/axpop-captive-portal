@@ -9,6 +9,7 @@ import json
 import logging
 import re
 import time
+import os
 from typing import List, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -16,9 +17,30 @@ logger = logging.getLogger(__name__)
 class WiFiManager:
     """WiFi management class using NetworkManager CLI tools"""
     
-    def __init__(self):
+    def __init__(self, config_file: str = "config.json"):
+        self.config = self._load_config(config_file)
+        self.scan_interface = self.config.get('wifi_scan_interface', 'wlan1')
         self.interface_name = self._get_wireless_interface()
-        logger.info(f"Initialized WiFiManager with interface: {self.interface_name}")
+        logger.info(f"Initialized WiFiManager with scan interface: {self.scan_interface}, connection interface: {self.interface_name}")
+    
+    def _load_config(self, config_file: str) -> Dict:
+        """Load configuration from JSON file"""
+        try:
+            # Try to load from the same directory as this script
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(script_dir, config_file)
+            
+            if os.path.exists(config_path):
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                logger.info(f"Loaded configuration from {config_path}")
+                return config
+            else:
+                logger.warning(f"Config file {config_path} not found, using defaults")
+                return {}
+        except Exception as e:
+            logger.error(f"Failed to load config file: {e}")
+            return {}
     
     def _get_wireless_interface(self) -> Optional[str]:
         """Get the name of the wireless interface"""
@@ -71,20 +93,20 @@ class WiFiManager:
             logger.warning(f"iwlist scan failed: {e}")
         
         # If both methods fail, return mock data for testing
-        logger.warning("All scan methods failed, returning mock data")
+        logger.warning(f"All scan methods failed on interface {self.scan_interface}, returning mock data")
         return self._get_mock_networks()
     
     def _scan_with_nmcli(self) -> List[Dict[str, str]]:
         """Scan networks using nmcli"""
         try:
-            # Rescan for fresh results
-            subprocess.run(['nmcli', 'device', 'wifi', 'rescan'], 
+            # Rescan for fresh results on the specified interface
+            subprocess.run(['nmcli', 'device', 'wifi', 'rescan', 'ifname', self.scan_interface], 
                          capture_output=True, timeout=10)
             time.sleep(2)  # Wait for scan to complete
             
-            # Get scan results
+            # Get scan results from the specified interface
             result = subprocess.run(['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 
-                                   'device', 'wifi', 'list'], 
+                                   'device', 'wifi', 'list', 'ifname', self.scan_interface], 
                                   capture_output=True, text=True, check=True, timeout=10)
             
             networks = []
@@ -119,11 +141,11 @@ class WiFiManager:
     
     def _scan_with_iwlist(self) -> List[Dict[str, str]]:
         """Scan networks using iwlist (fallback method)"""
-        if not self.interface_name:
-            raise Exception("No wireless interface available")
+        if not self.scan_interface:
+            raise Exception("No scan interface configured")
         
         try:
-            result = subprocess.run(['sudo', 'iwlist', self.interface_name, 'scan'], 
+            result = subprocess.run(['sudo', 'iwlist', self.scan_interface, 'scan'], 
                                   capture_output=True, text=True, check=True, timeout=15)
             
             networks = []
@@ -381,3 +403,11 @@ network={{
                 return False, f"Failed to reset interface: {str(e)}"
         
         return False, "No method available to disconnect"
+    
+    def get_scan_interface_info(self) -> Dict[str, str]:
+        """Get information about the configured scan interface"""
+        return {
+            'scan_interface': self.scan_interface,
+            'connection_interface': self.interface_name,
+            'config_source': 'config.json' if self.config else 'default'
+        }

@@ -1,0 +1,10 @@
+{
+    "wifi_scan_interface": "wlan1",
+    "captive_portal": {
+        "host": "0.0.0.0",
+        "port": 8080
+    },
+    "logging": {
+        "level": "INFO"
+    }
+}
