@@ -77,7 +77,7 @@ fi
 
 print_status "Installing Python packages..."
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install flask flask-socketio requests
+.venv/bin/pip install -r requirements.txt
 
 # Make run.py executable
 chmod +x run.py
