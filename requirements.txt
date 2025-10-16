@@ -1,0 +1,13 @@
+# Headless Raspberry Pi Captive Portal Requirements
+# For web-based interface instead of GUI
+
+# Web framework
+flask>=2.3.0
+flask-socketio>=5.3.0
+
+# System integration
+dbus-python
+pygobject
+
+# Optional: For enhanced web features
+requests>=2.31.0

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuneBugger Captive Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 class="logo">🏜️ DuneBugger Captive Portal</h1>
+            <p class="subtitle">Connect to WiFi Network</p>
+        </header>
+
+        <main>
+            <!-- Connection Status -->
+            <div id="status-panel" class="panel">
+                <h2>Connection Status</h2>
+                <div id="status-content">
+                    <span class="status-indicator" id="status-indicator">🔄</span>
+                    <span id="status-text">Checking connection...</span>
+                </div>
+                <button id="disconnect-btn" class="btn btn-danger" style="display: none;">Disconnect</button>
+            </div>
+
+            <!-- WiFi Networks -->
+            <div id="networks-panel" class="panel">
+                <div class="panel-header">
+                    <h2>Available Networks</h2>
+                    <button id="scan-btn" class="btn btn-secondary">🔄 Scan</button>
+                </div>
+                
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Scanning for networks...</p>
+                </div>
+                
+                <div id="networks-list" class="networks-list">
+                    <!-- Networks will be populated here -->
+                </div>
+            </div>
+
+            <!-- Connection Form -->
+            <div id="connection-form" class="panel" style="display: none;">
+                <h2>Connect to Network</h2>
+                <form id="wifi-form">
+                    <div class="form-group">
+                        <label for="selected-ssid">Network Name (SSID):</label>
+                        <input type="text" id="selected-ssid" name="ssid" readonly>
+                    </div>
+                    
+                    <div class="form-group" id="password-group">
+                        <label for="password">Password:</label>
+                        <div class="password-input">
+                            <input type="password" id="password" name="password" placeholder="Enter network password">
+                            <button type="button" id="toggle-password" class="btn-toggle">👁️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" id="connect-btn" class="btn btn-primary">Connect</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Messages -->
+            <div id="messages" class="messages">
+                <!-- Success/error messages will appear here -->
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 DuneBugger Project</p>
+            <p class="device-info">Device: <span id="device-info">Loading...</span></p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

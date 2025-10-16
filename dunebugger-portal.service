@@ -1,0 +1,25 @@
+[Unit]
+Description=DuneBugger Captive Portal
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/marco/localGits/dunebugger-app/axpop-captive-portal
+Environment=PYTHONPATH=/home/marco/localGits/dunebugger-app/axpop-captive-portal
+ExecStart=/home/marco/localGits/dunebugger-app/axpop-captive-portal/.venv/bin/python /home/marco/localGits/dunebugger-app/axpop-captive-portal/run.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings (adjust as needed for your environment)
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectHome=false
+ProtectSystem=false
+
+[Install]
+WantedBy=multi-user.target
