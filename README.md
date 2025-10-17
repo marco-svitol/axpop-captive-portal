@@ -12,6 +12,7 @@ A Python-based HTTP web captive portal designed for Raspberry Pi that allows use
 - 🖥️ **Responsive Design** - Works on mobile, tablet, and desktop devices
 - 🔧 **NetworkManager Integration** - Uses system NetworkManager for reliable connections
 - 📱 **Mobile-Friendly** - Optimized for smartphone and tablet usage
+- 🌐 **Offline Operation** - Works without internet connection (all assets served locally)
 
 ## Requirements
 

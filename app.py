@@ -9,6 +9,8 @@ from flask_socketio import SocketIO, emit
 import json
 import logging
 import os
+import signal
+import sys
 from wifi_manager import WiFiManager
 
 # Configure logging
@@ -137,7 +139,16 @@ def handle_scan_request():
             'error': str(e)
         })
 
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    logger.info(f"Received signal {signum}, shutting down gracefully...")
+    sys.exit(0)
+
 if __name__ == '__main__':
+    # Setup signal handlers
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     # Create templates and static directories if they don't exist
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static/css', exist_ok=True)
@@ -147,5 +158,13 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     debug = os.environ.get('FLASK_ENV', 'production') == 'development'
     
-    # Run the application
-    socketio.run(app, host='0.0.0.0', port=port, debug=debug)
+    try:
+        # Run the application
+        logger.info(f"Starting server on port {port}...")
+        socketio.run(app, host='0.0.0.0', port=port, debug=debug, allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        logger.info("Received KeyboardInterrupt, shutting down...")
+    except Exception as e:
+        logger.error(f"Application error: {e}")
+    finally:
+        logger.info("Application shutdown complete.")

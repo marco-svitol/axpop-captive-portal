@@ -79,7 +79,8 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Socket.IO is served locally to ensure captive portal works without internet connection -->
+    <script src="{{ url_for('static', filename='vendor/socket.io.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
