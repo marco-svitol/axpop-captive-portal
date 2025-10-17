@@ -39,6 +39,33 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Function to check WiFi interfaces
+check_wifi_interfaces() {
+    print_status "Checking WiFi interfaces..."
+    
+    wifi_count=$(nmcli device status | grep -c wifi || true)
+    
+    if [ "$wifi_count" -lt 2 ]; then
+        print_warning "Found only $wifi_count WiFi interface(s)"
+        print_warning "DuneBugger requires 2 WiFi interfaces for optimal operation:"
+        print_warning "  - One for Access Point mode"
+        print_warning "  - One for client WiFi connections"
+        echo ""
+        print_warning "Recommended hardware setup:"
+        print_warning "  - Raspberry Pi with built-in WiFi + USB WiFi adapter"
+        print_warning "  - Or two USB WiFi adapters"
+        echo ""
+        read -p "Continue installation anyway? (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_error "Installation cancelled"
+            exit 1
+        fi
+    else
+        print_status "Found $wifi_count WiFi interfaces - sufficient for dual-mode operation"
+    fi
+}
+
 # Update system packages
 print_status "Updating system packages..."
 apt-get update -y
@@ -52,14 +79,15 @@ apt-get install -y \
     network-manager \
     wireless-tools \
     wpasupplicant \
-    dnsmasq \
-    hostapd \
     iptables-persistent
 
 # Ensure NetworkManager is running
 print_status "Starting NetworkManager..."
 systemctl enable NetworkManager
 systemctl start NetworkManager
+
+# Check WiFi interfaces
+check_wifi_interfaces
 
 # Create log file with proper permissions
 print_status "Setting up log file..."
@@ -110,64 +138,38 @@ else
     exit 1
 fi
 
-# Optional: Configure as WiFi Access Point
-echo ""
-read -p "Do you want to configure this Raspberry Pi as a WiFi Access Point? (y/n): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_status "Configuring WiFi Access Point..."
-    
-    # Backup original configurations
-    cp /etc/hostapd/hostapd.conf /etc/hostapd/hostapd.conf.backup 2>/dev/null || true
-    cp /etc/dnsmasq.conf /etc/dnsmasq.conf.backup 2>/dev/null || true
-    
-    # Configure hostapd
-    cat > /etc/hostapd/hostapd.conf << EOF
-interface=wlan0
-driver=nl80211
-ssid=DuneBugger-Setup
-hw_mode=g
-channel=7
-wmm_enabled=0
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=0
-EOF
-
-    # Configure dnsmasq
-    cat >> /etc/dnsmasq.conf << EOF
-
-# DuneBugger Captive Portal Configuration
-interface=wlan0
-dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-address=/#/192.168.50.1
-EOF
-
-    # Configure network interface
-    cat >> /etc/dhcpcd.conf << EOF
-
-# DuneBugger Access Point Configuration
-interface wlan0
-    static ip_address=192.168.50.1/24
-    nohook wpa_supplicant
-EOF
-
-    # Enable services
-    systemctl enable hostapd
-    systemctl enable dnsmasq
-    
-    print_status "Access Point configuration complete!"
-    print_warning "Please reboot the Raspberry Pi to apply network changes."
-fi
-
 echo ""
 echo -e "${GREEN}Installation complete!${NC}"
 echo "========================================"
 echo "Service name: $SERVICE_NAME"
 echo "Service status: systemctl status $SERVICE_NAME"
 echo "View logs: journalctl -u $SERVICE_NAME -f"
-echo "Web interface: http://$(hostname -I | awk '{print $1}')"
+echo "Web interface: http://$(hostname -I | awk '{print $1}'):80"
+echo ""
+echo ""
+echo "🏜️ DuneBugger Captive Portal Features:"
+echo "  📡 Automatic WiFi scanning and connection"
+echo "  🔄 Automatic access point setup when no internet"
+echo "  ⚙️  Configurable AP settings via web interface"
+echo "  📱 Mobile-friendly captive portal"
+echo "  🔧 Dual WiFi interface support"
+echo ""
+echo "📋 Configuration:"
+echo "  - Config file: $PROJECT_DIR/ap_config.json"
+echo "  - Web interface: Configure button in Access Point panel"
+echo "  - Default AP: wlan1 (DuneBugger-Setup)"
+echo "  - Default client: wlan0"
+echo ""
+echo "🔍 Current WiFi interfaces:"
+nmcli device status | grep wifi | while read -r line; do
+    echo "  📶 $line"
+done
+echo ""
+echo "📖 Usage:"
+echo "  - Access web interface at: http://$(hostname -I | awk '{print $1}'):80"
+echo "  - When no internet: AP appears as 'DuneBugger-Setup'"
+echo "  - Configure WiFi through captive portal"
+echo "  - Monitor status via web interface"
 echo ""
 echo "To uninstall:"
 echo "  sudo systemctl stop $SERVICE_NAME"
