@@ -37,9 +37,9 @@ class AccessPointManager:
     def _load_config(self) -> Dict:
         """Load AP configuration from file or create default"""
         default_config = {
-            "ap_ssid": "DuneBugger-Setup",
+            "ap_ssid": "DuneBugger.Connect",
             "ap_password": "dunebugger123",
-            "ap_ip": "192.168.4.1",
+            "ap_ip": "192.168.50.5",
             "ap_netmask": "255.255.255.0",
             "ap_channel": 7,
             "monitor_interval": 60,  # seconds

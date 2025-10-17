@@ -32,9 +32,9 @@ This implementation addresses the requirements for configurable WLAN interfaces,
 ### 1. **`ap_config.json`**
 ```json
 {
-  "ap_ssid": "DuneBugger-Setup",
+  "ap_ssid": "DuneBugger.Connect",
   "ap_password": "dunebugger123",
-  "ap_ip": "192.168.4.1",
+  "ap_ip": "192.168.50.5",
   "ap_netmask": "255.255.255.0",
   "ap_channel": 7,
   "monitor_interval": 60,
@@ -166,7 +166,7 @@ def update_config(self, new_config: Dict) -> Tuple[bool, str]:
   "ap_wlan_interface": "wlan1",      // Access Point
   "client_wlan_interface": "wlan0",  // Internet connection
   "ap_ssid": "DuneBugger-Setup",
-  "ap_ip": "192.168.4.1"
+  "ap_ip": "192.168.50.5"
 }
 ```
 

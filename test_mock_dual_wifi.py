@@ -58,7 +58,7 @@ lo               loopback  unmanaged     --"""
             config_test = {
                 'ap_ssid': 'Test-AP',
                 'ap_password': 'testpass123',
-                'ap_ip': '192.168.4.1',
+                'ap_ip': '192.168.50.5',
                 'monitor_interval': 60,
                 'ap_wlan_interface': 'wlan1',
                 'client_wlan_interface': 'wlan0'

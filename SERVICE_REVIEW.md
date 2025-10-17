@@ -17,9 +17,9 @@ Requires=NetworkManager.service
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/home/marco/localGits/dunebugger-app/axpop-captive-portal
-Environment=PYTHONPATH=/home/marco/localGits/dunebugger-app/axpop-captive-portal
-ExecStart=/home/marco/localGits/dunebugger-app/axpop-captive-portal/.venv/bin/python /home/marco/localGits/dunebugger-app/axpop-captive-portal/run.py
+WorkingDirectory=/opt/axpop-captive-portal
+Environment=PYTHONPATH=/opt/axpop-captive-portal
+ExecStart=/opt/axpop-captive-portal/.venv/bin/python /opt/axpop-captive-portal/run.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
