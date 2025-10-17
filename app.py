@@ -12,6 +12,7 @@ import os
 import signal
 import sys
 from wifi_manager import WiFiManager
+from access_point_manager import AccessPointManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,8 +22,20 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dunebugger-captive-portal-secret-key'
 socketio = SocketIO(app)
 
-# Initialize WiFi manager
-wifi_manager = WiFiManager()
+# Initialize WiFi manager and Access Point manager
+try:
+    ap_manager = AccessPointManager()
+    # Initialize WiFiManager with the client interface from AP manager
+    client_interface = ap_manager.get_client_wlan_interface()
+    wifi_manager = WiFiManager(interface_name=client_interface)
+    logger.info(f"Using {client_interface} for WiFi client operations and {ap_manager.ap_device} for AP")
+except ValueError as e:
+    logger.error(f"WiFi interface validation failed: {e}")
+    logger.error("Please ensure you have at least two WiFi interfaces available")
+    sys.exit(1)
+except Exception as e:
+    logger.error(f"Failed to initialize managers: {e}")
+    sys.exit(1)
 
 @app.route('/')
 def index():
@@ -112,6 +125,150 @@ def disconnect():
             'error': str(e)
         }), 500
 
+@app.route('/api/ap/status')
+def ap_status():
+    """API endpoint to get access point status"""
+    try:
+        status = ap_manager.get_status()
+        # Add WiFi interface information
+        status['client_interface'] = ap_manager.get_client_wlan_interface()
+        status['available_interfaces'] = ap_manager.get_available_wlan_devices()
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        logger.error(f"Failed to get AP status: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/start', methods=['POST'])
+def start_ap():
+    """API endpoint to manually start access point"""
+    try:
+        success, message = ap_manager.setup_access_point()
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+    except Exception as e:
+        logger.error(f"Failed to start AP: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/stop', methods=['POST'])
+def stop_ap():
+    """API endpoint to manually stop access point"""
+    try:
+        success, message = ap_manager.teardown_access_point()
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+    except Exception as e:
+        logger.error(f"Failed to stop AP: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/config', methods=['GET'])
+def get_ap_config():
+    """API endpoint to get access point configuration"""
+    try:
+        config = ap_manager.config.copy()
+        # Don't expose password in GET request
+        if 'ap_password' in config:
+            config['ap_password'] = '***' if config['ap_password'] else ''
+        return jsonify({
+            'success': True,
+            'config': config
+        })
+    except Exception as e:
+        logger.error(f"Failed to get AP config: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/config', methods=['POST'])
+def update_ap_config():
+    """API endpoint to update access point configuration"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No configuration data provided'
+            }), 400
+        
+        success, message = ap_manager.update_config(data)
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+    except Exception as e:
+        logger.error(f"Failed to update AP config: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/monitoring/start', methods=['POST'])
+def start_monitoring():
+    """API endpoint to start connectivity monitoring"""
+    try:
+        ap_manager.start_monitoring()
+        return jsonify({
+            'success': True,
+            'message': 'Monitoring started'
+        })
+    except Exception as e:
+        logger.error(f"Failed to start monitoring: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/ap/monitoring/stop', methods=['POST'])
+def stop_monitoring():
+    """API endpoint to stop connectivity monitoring"""
+    try:
+        ap_manager.stop_monitoring()
+        return jsonify({
+            'success': True,
+            'message': 'Monitoring stopped'
+        })
+    except Exception as e:
+        logger.error(f"Failed to stop monitoring: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/interfaces')
+def get_interfaces():
+    """API endpoint to get WiFi interface information"""
+    try:
+        return jsonify({
+            'success': True,
+            'interfaces': {
+                'client_interface': ap_manager.get_client_wlan_interface(),
+                'ap_interface': ap_manager.ap_device,
+                'available_interfaces': ap_manager.get_available_wlan_devices()
+            }
+        })
+    except Exception as e:
+        logger.error(f"Failed to get interface info: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @socketio.on('connect')
 def handle_connect():
     """Handle WebSocket connection"""
@@ -142,6 +299,11 @@ def handle_scan_request():
 def signal_handler(signum, frame):
     """Handle shutdown signals"""
     logger.info(f"Received signal {signum}, shutting down gracefully...")
+    # Stop AP monitoring and clean up
+    try:
+        ap_manager.stop_monitoring()
+    except Exception as e:
+        logger.error(f"Error during AP cleanup: {e}")
     sys.exit(0)
 
 if __name__ == '__main__':
@@ -159,6 +321,10 @@ if __name__ == '__main__':
     debug = os.environ.get('FLASK_ENV', 'production') == 'development'
     
     try:
+        # Start AP monitoring
+        logger.info("Starting access point monitoring...")
+        ap_manager.start_monitoring()
+        
         # Run the application
         logger.info(f"Starting server on port {port}...")
         socketio.run(app, host='0.0.0.0', port=port, debug=debug, allow_unsafe_werkzeug=True)
@@ -167,4 +333,9 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Application error: {e}")
     finally:
+        # Clean up AP monitoring
+        try:
+            ap_manager.stop_monitoring()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
         logger.info("Application shutdown complete.")

@@ -25,6 +25,26 @@
                 <button id="disconnect-btn" class="btn btn-danger" style="display: none;">Disconnect</button>
             </div>
 
+            <!-- Access Point Status -->
+            <div id="ap-panel" class="panel">
+                <h2>Access Point Status</h2>
+                <div id="ap-status-content">
+                    <span class="status-indicator" id="ap-status-indicator">🔄</span>
+                    <span id="ap-status-text">Checking AP status...</span>
+                </div>
+                <div id="ap-info" style="display: none;">
+                    <p><strong>SSID:</strong> <span id="ap-ssid">-</span></p>
+                    <p><strong>Monitoring:</strong> <span id="ap-monitoring">-</span></p>
+                    <p><strong>AP Interface:</strong> <span id="ap-interface">-</span></p>
+                    <p><strong>Client Interface:</strong> <span id="client-interface">-</span></p>
+                </div>
+                <div id="ap-controls">
+                    <button id="ap-start-btn" class="btn btn-success" style="display: none;">Start AP</button>
+                    <button id="ap-stop-btn" class="btn btn-danger" style="display: none;">Stop AP</button>
+                    <button id="ap-config-btn" class="btn btn-secondary">Configure</button>
+                </div>
+            </div>
+
             <!-- WiFi Networks -->
             <div id="networks-panel" class="panel">
                 <div class="panel-header">
@@ -76,6 +96,55 @@
             <p>&copy; 2025 DuneBugger Project</p>
             <p class="device-info">Device: <span id="device-info">Loading...</span></p>
         </footer>
+    </div>
+
+    <!-- AP Configuration Modal -->
+    <div id="ap-config-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Access Point Configuration</h2>
+                <button id="ap-config-close" class="btn-close">&times;</button>
+            </div>
+            <form id="ap-config-form">
+                <div class="form-group">
+                    <label for="ap-ssid-input">SSID Name:</label>
+                    <input type="text" id="ap-ssid-input" name="ap_ssid" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ap-password-input">Password:</label>
+                    <input type="password" id="ap-password-input" name="ap_password">
+                    <small>Leave empty for open access point</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ap-ip-input">IP Address:</label>
+                    <input type="text" id="ap-ip-input" name="ap_ip" pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="monitor-interval-input">Monitor Interval (seconds):</label>
+                    <input type="number" id="monitor-interval-input" name="monitor_interval" min="30" max="300" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ap-wlan-input">AP WiFi Interface:</label>
+                    <input type="text" id="ap-wlan-input" name="ap_wlan_interface" pattern="^wlan\d+$" required>
+                    <small>Interface to use for Access Point (e.g., wlan1)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="client-wlan-input">Client WiFi Interface:</label>
+                    <input type="text" id="client-wlan-input" name="client_wlan_interface" pattern="^wlan\d+$" required>
+                    <small>Interface to use for WiFi client connections (e.g., wlan0)</small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="ap-config-cancel" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Configuration</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Scripts -->

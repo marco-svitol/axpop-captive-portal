@@ -14,6 +14,7 @@ class CaptivePortal {
         this.initializeSocket();
         this.bindEvents();
         this.updateStatus();
+        this.updateAPStatus();
         this.scanNetworks();
         this.updateDeviceInfo();
     }
@@ -67,10 +68,38 @@ class CaptivePortal {
             this.togglePasswordVisibility();
         });
         
+        // AP Control buttons
+        document.getElementById('ap-start-btn').addEventListener('click', () => {
+            this.startAccessPoint();
+        });
+        
+        document.getElementById('ap-stop-btn').addEventListener('click', () => {
+            this.stopAccessPoint();
+        });
+        
+        document.getElementById('ap-config-btn').addEventListener('click', () => {
+            this.showAPConfigModal();
+        });
+        
+        // AP Configuration modal
+        document.getElementById('ap-config-close').addEventListener('click', () => {
+            this.hideAPConfigModal();
+        });
+        
+        document.getElementById('ap-config-cancel').addEventListener('click', () => {
+            this.hideAPConfigModal();
+        });
+        
+        document.getElementById('ap-config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveAPConfig();
+        });
+        
         // Auto-refresh status every 10 seconds
         setInterval(() => {
             if (!this.isConnecting) {
                 this.updateStatus();
+                this.updateAPStatus();
             }
         }, 10000);
     }
@@ -398,6 +427,176 @@ class CaptivePortal {
         }
         
         deviceInfo.textContent = `${deviceType} (${navigator.platform})`;
+    }
+    
+    // Access Point Management Methods
+    async updateAPStatus() {
+        try {
+            const response = await fetch('/api/ap/status');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.displayAPStatus(data.status);
+            }
+        } catch (error) {
+            console.error('AP status update error:', error);
+        }
+    }
+    
+    displayAPStatus(status) {
+        const indicator = document.getElementById('ap-status-indicator');
+        const text = document.getElementById('ap-status-text');
+        const info = document.getElementById('ap-info');
+        const ssidSpan = document.getElementById('ap-ssid');
+        const monitoringSpan = document.getElementById('ap-monitoring');
+        const apInterfaceSpan = document.getElementById('ap-interface');
+        const clientInterfaceSpan = document.getElementById('client-interface');
+        const startBtn = document.getElementById('ap-start-btn');
+        const stopBtn = document.getElementById('ap-stop-btn');
+        const panel = document.getElementById('ap-panel');
+        
+        // Remove previous status classes
+        panel.classList.remove('status-connected', 'status-disconnected');
+        
+        if (status.ap_active) {
+            indicator.textContent = '📶';
+            text.textContent = `Access Point Active: ${status.ap_ssid}`;
+            info.style.display = 'block';
+            ssidSpan.textContent = status.ap_ssid;
+            monitoringSpan.textContent = status.monitoring ? 'Active' : 'Inactive';
+            apInterfaceSpan.textContent = status.ap_device || 'Unknown';
+            clientInterfaceSpan.textContent = status.client_interface || 'Unknown';
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            panel.classList.add('status-connected');
+        } else {
+            indicator.textContent = '📴';
+            text.textContent = 'Access Point Inactive';
+            info.style.display = 'block';  // Show interface info even when AP is off
+            ssidSpan.textContent = status.ap_ssid;
+            monitoringSpan.textContent = status.monitoring ? 'Active' : 'Inactive';
+            apInterfaceSpan.textContent = status.ap_device || 'Unknown';
+            clientInterfaceSpan.textContent = status.client_interface || 'Unknown';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            panel.classList.add('status-disconnected');
+        }
+    }
+    
+    async startAccessPoint() {
+        this.setButtonLoading('ap-start-btn', true);
+        
+        try {
+            const response = await fetch('/api/ap/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showMessage(data.message, 'success');
+                this.updateAPStatus();
+            } else {
+                this.showMessage(`Failed to start AP: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Start AP error:', error);
+            this.showMessage('Failed to start access point', 'error');
+        } finally {
+            this.setButtonLoading('ap-start-btn', false);
+        }
+    }
+    
+    async stopAccessPoint() {
+        this.setButtonLoading('ap-stop-btn', true);
+        
+        try {
+            const response = await fetch('/api/ap/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showMessage(data.message, 'success');
+                this.updateAPStatus();
+            } else {
+                this.showMessage(`Failed to stop AP: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Stop AP error:', error);
+            this.showMessage('Failed to stop access point', 'error');
+        } finally {
+            this.setButtonLoading('ap-stop-btn', false);
+        }
+    }
+    
+    async showAPConfigModal() {
+        // Load current configuration
+        try {
+            const response = await fetch('/api/ap/config');
+            const data = await response.json();
+            
+            if (data.success) {
+                const config = data.config;
+                document.getElementById('ap-ssid-input').value = config.ap_ssid || '';
+                document.getElementById('ap-password-input').value = ''; // Don't show password
+                document.getElementById('ap-ip-input').value = config.ap_ip || '';
+                document.getElementById('monitor-interval-input').value = config.monitor_interval || 60;
+                document.getElementById('ap-wlan-input').value = config.ap_wlan_interface || 'wlan1';
+                document.getElementById('client-wlan-input').value = config.client_wlan_interface || 'wlan0';
+            }
+        } catch (error) {
+            console.error('Failed to load AP config:', error);
+        }
+        
+        document.getElementById('ap-config-modal').style.display = 'flex';
+    }
+    
+    hideAPConfigModal() {
+        document.getElementById('ap-config-modal').style.display = 'none';
+    }
+    
+    async saveAPConfig() {
+        const form = document.getElementById('ap-config-form');
+        const formData = new FormData(form);
+        const config = {};
+        
+        for (let [key, value] of formData.entries()) {
+            config[key] = value;
+        }
+        
+        // Convert monitor_interval to number
+        config.monitor_interval = parseInt(config.monitor_interval);
+        
+        try {
+            const response = await fetch('/api/ap/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showMessage(data.message, 'success');
+                this.hideAPConfigModal();
+                this.updateAPStatus();
+            } else {
+                this.showMessage(`Failed to save config: ${data.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Save AP config error:', error);
+            this.showMessage('Failed to save configuration', 'error');
+        }
     }
     
     escapeHtml(text) {
