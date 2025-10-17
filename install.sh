@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SERVICE_NAME="dunebugger-portal"
-PROJECT_DIR="/home/marco/localGits/dunebugger-app/axpop-captive-portal"
+PROJECT_DIR="/opt/axpop-captive-portal"
 SERVICE_FILE="dunebugger-portal.service"
 LOG_FILE="/var/log/dunebugger-portal.log"
 
@@ -78,8 +78,7 @@ apt-get install -y \
     python3-venv \
     network-manager \
     wireless-tools \
-    wpasupplicant \
-    iptables-persistent
+    wpasupplicant
 
 # Ensure NetworkManager is running
 print_status "Starting NetworkManager..."
