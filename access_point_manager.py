@@ -26,11 +26,13 @@ class AccessPointManager:
         self.ap_active = False
         self.ap_connection_name = "DuneBugger-AP"
         self.ap_device = None
+        self.client_device = None
+        self.available_wlan_devices = []
         
-        # Find available WiFi device for AP
-        self._find_ap_device()
+        # Find and validate WiFi devices
+        self._validate_wlan_interfaces()
         
-        logger.info(f"AccessPointManager initialized with device: {self.ap_device}")
+        logger.info(f"AccessPointManager initialized - AP device: {self.ap_device}, Client device: {self.client_device}")
     
     def _load_config(self) -> Dict:
         """Load AP configuration from file or create default"""
@@ -41,7 +43,9 @@ class AccessPointManager:
             "ap_netmask": "255.255.255.0",
             "ap_channel": 7,
             "monitor_interval": 60,  # seconds
-            "connection_timeout": 10  # seconds for connectivity check
+            "connection_timeout": 10,  # seconds for connectivity check
+            "ap_wlan_interface": "wlan1",  # Interface for Access Point
+            "client_wlan_interface": "wlan0"  # Interface for WiFi client connections
         }
         
         if os.path.exists(self.config_file):
@@ -69,40 +73,72 @@ class AccessPointManager:
         except IOError as e:
             logger.error(f"Failed to save config: {e}")
     
-    def _find_ap_device(self) -> None:
-        """Find a suitable WiFi device for access point"""
+    def _validate_wlan_interfaces(self) -> None:
+        """Validate that required WLAN interfaces are available"""
         try:
             result = subprocess.run(['nmcli', 'device', 'status'], 
                                   capture_output=True, text=True, check=True)
             
+            # Find all WiFi devices
+            wifi_devices = []
             for line in result.stdout.split('\n'):
                 if 'wifi' in line:
                     parts = line.split()
                     if parts and len(parts) >= 2:
                         device = parts[0]
-                        state = parts[1]
-                        # Prefer disconnected devices for AP
-                        if state in ['disconnected', 'unavailable']:
-                            self.ap_device = device
-                            logger.info(f"Selected device {device} for AP (state: {state})")
-                            return
-                        elif not self.ap_device:  # Fallback to any wifi device
-                            self.ap_device = device
+                        wifi_devices.append(device)
             
-            if not self.ap_device:
-                # Fallback to common device names
-                for device in ['wlan1', 'wlan0']:
-                    try:
-                        subprocess.run(['nmcli', 'device', 'show', device], 
-                                     capture_output=True, check=True)
-                        self.ap_device = device
-                        break
-                    except subprocess.CalledProcessError:
-                        continue
+            self.available_wlan_devices = wifi_devices
+            logger.info(f"Found WiFi devices: {wifi_devices}")
+            
+            # Check if we have at least 2 WiFi interfaces
+            if len(wifi_devices) < 2:
+                error_msg = f"Error: Found only {len(wifi_devices)} WiFi interface(s). Two WiFi interfaces are required - one for AP mode and one for client connections."
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Set AP and client devices from configuration
+            self.ap_device = self.config.get('ap_wlan_interface', 'wlan1')
+            self.client_device = self.config.get('client_wlan_interface', 'wlan0')
+            
+            # Validate configured interfaces exist
+            if self.ap_device not in wifi_devices:
+                logger.warning(f"Configured AP interface '{self.ap_device}' not found. Using {wifi_devices[1] if len(wifi_devices) > 1 else wifi_devices[0]}")
+                self.ap_device = wifi_devices[1] if len(wifi_devices) > 1 else wifi_devices[0]
+            
+            if self.client_device not in wifi_devices:
+                logger.warning(f"Configured client interface '{self.client_device}' not found. Using {wifi_devices[0]}")
+                self.client_device = wifi_devices[0]
+            
+            # Ensure AP and client use different interfaces
+            if self.ap_device == self.client_device and len(wifi_devices) > 1:
+                # Swap if they're the same
+                available_for_ap = [dev for dev in wifi_devices if dev != self.client_device]
+                if available_for_ap:
+                    self.ap_device = available_for_ap[0]
+                    logger.info(f"Switched AP device to {self.ap_device} to avoid conflict with client device {self.client_device}")
+            
+            logger.info(f"Using AP interface: {self.ap_device}, Client interface: {self.client_device}")
                         
         except subprocess.CalledProcessError as e:
-            logger.warning(f"Failed to find AP device: {e}")
-            self.ap_device = 'wlan0'  # Default fallback
+            logger.error(f"Failed to check WiFi devices: {e}")
+            # Fallback to default names
+            self.ap_device = self.config.get('ap_wlan_interface', 'wlan1')
+            self.client_device = self.config.get('client_wlan_interface', 'wlan0')
+            self.available_wlan_devices = [self.client_device, self.ap_device]
+            logger.warning(f"Using fallback devices - AP: {self.ap_device}, Client: {self.client_device}")
+        
+        except ValueError as e:
+            # Re-raise validation errors
+            raise e
+    
+    def get_client_wlan_interface(self) -> str:
+        """Get the WiFi interface that should be used for client connections"""
+        return self.client_device
+    
+    def get_available_wlan_devices(self) -> list:
+        """Get list of all available WiFi devices"""
+        return self.available_wlan_devices.copy()
     
     def check_connectivity(self) -> bool:
         """Check if device has internet connectivity via WiFi or Ethernet"""
@@ -304,21 +340,51 @@ class AccessPointManager:
         """Update configuration"""
         try:
             # Validate required fields
-            required_fields = ['ap_ssid', 'ap_password', 'ap_ip', 'monitor_interval']
+            required_fields = ['ap_ssid', 'ap_password', 'ap_ip', 'monitor_interval', 
+                             'ap_wlan_interface', 'client_wlan_interface']
             for field in required_fields:
                 if field not in new_config:
                     return False, f"Missing required field: {field}"
+            
+            # Validate that interfaces are different
+            if new_config['ap_wlan_interface'] == new_config['client_wlan_interface']:
+                return False, "AP and client WiFi interfaces must be different"
+            
+            # Validate interface names
+            if new_config['ap_wlan_interface'] not in self.available_wlan_devices:
+                return False, f"AP interface '{new_config['ap_wlan_interface']}' is not available. Available: {self.available_wlan_devices}"
+            
+            if new_config['client_wlan_interface'] not in self.available_wlan_devices:
+                return False, f"Client interface '{new_config['client_wlan_interface']}' is not available. Available: {self.available_wlan_devices}"
+            
+            # Store old interfaces for comparison
+            old_ap_interface = self.ap_device
+            old_client_interface = self.client_device
             
             # Update config
             self.config.update(new_config)
             self._save_config(self.config)
             
-            # If AP is active and SSID/password changed, restart it
-            if self.ap_active and ('ap_ssid' in new_config or 'ap_password' in new_config):
+            # Update interface assignments
+            interface_changed = (self.ap_device != new_config['ap_wlan_interface'] or 
+                               self.client_device != new_config['client_wlan_interface'])
+            
+            self.ap_device = new_config['ap_wlan_interface']
+            self.client_device = new_config['client_wlan_interface']
+            
+            # If AP is active and AP interface or SSID/password changed, restart it
+            if self.ap_active and ('ap_ssid' in new_config or 'ap_password' in new_config or 
+                                 old_ap_interface != self.ap_device):
                 logger.info("AP config changed, restarting access point")
                 self.teardown_access_point()
                 time.sleep(2)
                 self.setup_access_point()
+            
+            # Update WiFiManager interface if client interface changed
+            if interface_changed:
+                from app import wifi_manager
+                wifi_manager.set_interface(self.client_device)
+                logger.info(f"Updated WiFiManager to use interface: {self.client_device}")
             
             return True, "Configuration updated successfully"
             

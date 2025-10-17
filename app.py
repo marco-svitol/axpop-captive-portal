@@ -23,8 +23,19 @@ app.config['SECRET_KEY'] = 'dunebugger-captive-portal-secret-key'
 socketio = SocketIO(app)
 
 # Initialize WiFi manager and Access Point manager
-wifi_manager = WiFiManager()
-ap_manager = AccessPointManager()
+try:
+    ap_manager = AccessPointManager()
+    # Initialize WiFiManager with the client interface from AP manager
+    client_interface = ap_manager.get_client_wlan_interface()
+    wifi_manager = WiFiManager(interface_name=client_interface)
+    logger.info(f"Using {client_interface} for WiFi client operations and {ap_manager.ap_device} for AP")
+except ValueError as e:
+    logger.error(f"WiFi interface validation failed: {e}")
+    logger.error("Please ensure you have at least two WiFi interfaces available")
+    sys.exit(1)
+except Exception as e:
+    logger.error(f"Failed to initialize managers: {e}")
+    sys.exit(1)
 
 @app.route('/')
 def index():
@@ -119,6 +130,9 @@ def ap_status():
     """API endpoint to get access point status"""
     try:
         status = ap_manager.get_status()
+        # Add WiFi interface information
+        status['client_interface'] = ap_manager.get_client_wlan_interface()
+        status['available_interfaces'] = ap_manager.get_available_wlan_devices()
         return jsonify({
             'success': True,
             'status': status
@@ -231,6 +245,25 @@ def stop_monitoring():
         })
     except Exception as e:
         logger.error(f"Failed to stop monitoring: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/interfaces')
+def get_interfaces():
+    """API endpoint to get WiFi interface information"""
+    try:
+        return jsonify({
+            'success': True,
+            'interfaces': {
+                'client_interface': ap_manager.get_client_wlan_interface(),
+                'ap_interface': ap_manager.ap_device,
+                'available_interfaces': ap_manager.get_available_wlan_devices()
+            }
+        })
+    except Exception as e:
+        logger.error(f"Failed to get interface info: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

@@ -449,6 +449,8 @@ class CaptivePortal {
         const info = document.getElementById('ap-info');
         const ssidSpan = document.getElementById('ap-ssid');
         const monitoringSpan = document.getElementById('ap-monitoring');
+        const apInterfaceSpan = document.getElementById('ap-interface');
+        const clientInterfaceSpan = document.getElementById('client-interface');
         const startBtn = document.getElementById('ap-start-btn');
         const stopBtn = document.getElementById('ap-stop-btn');
         const panel = document.getElementById('ap-panel');
@@ -462,13 +464,19 @@ class CaptivePortal {
             info.style.display = 'block';
             ssidSpan.textContent = status.ap_ssid;
             monitoringSpan.textContent = status.monitoring ? 'Active' : 'Inactive';
+            apInterfaceSpan.textContent = status.ap_device || 'Unknown';
+            clientInterfaceSpan.textContent = status.client_interface || 'Unknown';
             startBtn.style.display = 'none';
             stopBtn.style.display = 'inline-block';
             panel.classList.add('status-connected');
         } else {
             indicator.textContent = '📴';
             text.textContent = 'Access Point Inactive';
-            info.style.display = 'none';
+            info.style.display = 'block';  // Show interface info even when AP is off
+            ssidSpan.textContent = status.ap_ssid;
+            monitoringSpan.textContent = status.monitoring ? 'Active' : 'Inactive';
+            apInterfaceSpan.textContent = status.ap_device || 'Unknown';
+            clientInterfaceSpan.textContent = status.client_interface || 'Unknown';
             startBtn.style.display = 'inline-block';
             stopBtn.style.display = 'none';
             panel.classList.add('status-disconnected');
@@ -541,6 +549,8 @@ class CaptivePortal {
                 document.getElementById('ap-password-input').value = ''; // Don't show password
                 document.getElementById('ap-ip-input').value = config.ap_ip || '';
                 document.getElementById('monitor-interval-input').value = config.monitor_interval || 60;
+                document.getElementById('ap-wlan-input').value = config.ap_wlan_interface || 'wlan1';
+                document.getElementById('client-wlan-input').value = config.client_wlan_interface || 'wlan0';
             }
         } catch (error) {
             console.error('Failed to load AP config:', error);

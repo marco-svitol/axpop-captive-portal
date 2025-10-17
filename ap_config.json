@@ -1,9 +1,11 @@
 {
-  "ap_ssid": "DuneBugger-Setup",
-  "ap_password": "dunebugger123",
+  "ap_ssid": "Test-AP",
+  "ap_password": "testpass123",
   "ap_ip": "192.168.4.1",
   "ap_netmask": "255.255.255.0",
   "ap_channel": 7,
   "monitor_interval": 60,
-  "connection_timeout": 10
+  "connection_timeout": 10,
+  "ap_wlan_interface": "wlan1",
+  "client_wlan_interface": "wlan0"
 }

@@ -15,7 +15,7 @@ Successfully implemented automatic access point management functionality for the
 
 ### 2. `ap_config.json`
 - Configuration file for AP settings
-- Default values: SSID "DuneBugger-Setup", password "dunebugger123", IP 192.168.4.1
+- Default values: SSID "DuneBugger-Setup", password "dunebugger123", IP 192.168.50.1
 - Configurable monitoring interval (default 60 seconds)
 
 ### 3. `test_ap.py`
@@ -147,7 +147,7 @@ Internet
            │
            └─ Client Devices (192.168.4.x)
                    │
-                   └─ Captive Portal (192.168.4.1:8080)
+                   └─ Captive Portal (192.168.50.1:8080)
 ```
 
 ## Benefits

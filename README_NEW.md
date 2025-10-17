@@ -57,7 +57,7 @@ Default configuration:
 {
   "ap_ssid": "DuneBugger-Setup",
   "ap_password": "dunebugger123", 
-  "ap_ip": "192.168.4.1",
+  "ap_ip": "192.168.50.1",
   "ap_netmask": "255.255.255.0",
   "ap_channel": 7,
   "monitor_interval": 60,
@@ -90,7 +90,7 @@ sudo systemctl enable dunebugger-portal  # Auto-start on boot
 
 The web interface will be available at:
 - http://localhost:8080 (local access)
-- http://192.168.4.1:8080 (when connected to AP)
+- http://192.168.50.1:8080 (when connected to AP)
 
 ### Access Point Behavior
 
@@ -148,7 +148,7 @@ nmcli connection add type wifi ifname wlan0 con-name DuneBugger-AP ssid "DuneBug
 nmcli connection modify DuneBugger-AP 802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 7
 
 # Set IP and enable sharing
-nmcli connection modify DuneBugger-AP ipv4.method shared ipv4.addresses 192.168.4.1/24
+nmcli connection modify DuneBugger-AP ipv4.method shared ipv4.addresses 192.168.50.1/24
 
 # Add WPA2 security
 nmcli connection modify DuneBugger-AP 802-11-wireless-security.key-mgmt wpa-psk 802-11-wireless-security.psk "password"

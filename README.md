@@ -105,7 +105,7 @@ sudo python run.py
 
 2. **Access Point Mode:** If configured as an access point:
    - Connect to the "DuneBugger-Setup" WiFi network
-   - Navigate to `http://192.168.4.1`
+   - Navigate to `http://192.168.50.1`
 
 ### Using the Portal
 
@@ -145,13 +145,13 @@ If you want to use the Raspberry Pi as a WiFi access point for the captive porta
    ```
    interface=wlan0
    dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-   address=/#/192.168.4.1
+   address=/#/192.168.50.1
    ```
 
 3. **Set static IP** (`/etc/dhcpcd.conf`):
    ```
    interface wlan0
-       static ip_address=192.168.4.1/24
+       static ip_address=192.168.50.1/24
        nohook wpa_supplicant
    ```
 

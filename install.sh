@@ -141,7 +141,7 @@ EOF
 # DuneBugger Captive Portal Configuration
 interface=wlan0
 dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
-address=/#/192.168.4.1
+address=/#/192.168.50.1
 EOF
 
     # Configure network interface
@@ -149,7 +149,7 @@ EOF
 
 # DuneBugger Access Point Configuration
 interface wlan0
-    static ip_address=192.168.4.1/24
+    static ip_address=192.168.50.1/24
     nohook wpa_supplicant
 EOF
 

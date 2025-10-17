@@ -16,9 +16,18 @@ logger = logging.getLogger(__name__)
 class WiFiManager:
     """WiFi management class using NetworkManager CLI tools"""
     
-    def __init__(self):
-        self.interface_name = self._get_wireless_interface()
-        logger.info(f"Initialized WiFiManager with interface: {self.interface_name}")
+    def __init__(self, interface_name: Optional[str] = None):
+        if interface_name:
+            self.interface_name = interface_name
+            logger.info(f"WiFiManager using specified interface: {self.interface_name}")
+        else:
+            self.interface_name = self._get_wireless_interface()
+            logger.info(f"WiFiManager auto-detected interface: {self.interface_name}")
+    
+    def set_interface(self, interface_name: str) -> None:
+        """Set the WiFi interface to use for operations"""
+        self.interface_name = interface_name
+        logger.info(f"WiFiManager interface changed to: {self.interface_name}")
     
     def _get_wireless_interface(self) -> Optional[str]:
         """Get the name of the wireless interface"""

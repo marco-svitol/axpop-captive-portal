@@ -16,7 +16,7 @@ from pathlib import Path
 current_dir = Path(__file__).parent.absolute()
 sys.path.insert(0, str(current_dir))
 
-from app import app, socketio
+from app import app, socketio, ap_manager
 
 # Configure logging for production
 logging.basicConfig(
@@ -45,6 +45,14 @@ class CaptivePortalRunner:
         """Handle shutdown signals"""
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
+        
+        # Stop access point monitoring and clean up
+        try:
+            logger.info("Stopping access point monitoring...")
+            ap_manager.stop_monitoring()
+        except Exception as e:
+            logger.error(f"Error during AP cleanup: {e}")
+        
         # Stop the socketio server
         if hasattr(socketio, 'stop'):
             socketio.stop()
@@ -77,6 +85,10 @@ class CaptivePortalRunner:
         self.setup_environment()
         
         try:
+            # Start AP monitoring
+            logger.info("Starting access point monitoring...")
+            ap_manager.start_monitoring()
+            
             # Run the Flask-SocketIO application
             logger.info("Server starting on port 80...")
             socketio.run(
@@ -98,6 +110,11 @@ class CaptivePortalRunner:
             logger.error(f"Failed to start application: {e}")
             sys.exit(1)
         finally:
+            # Clean up AP monitoring
+            try:
+                ap_manager.stop_monitoring()
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
             logger.info("Application shutdown complete.")
 
 if __name__ == '__main__':
