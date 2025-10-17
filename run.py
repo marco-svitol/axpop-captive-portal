@@ -9,6 +9,7 @@ import sys
 import logging
 import signal
 import time
+import threading
 from pathlib import Path
 
 # Add the current directory to Python path
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 class CaptivePortalRunner:
     def __init__(self):
         self.running = True
+        self.server_thread = None
         self.setup_signal_handlers()
     
     def setup_signal_handlers(self):
@@ -43,6 +45,11 @@ class CaptivePortalRunner:
         """Handle shutdown signals"""
         logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
+        # Stop the socketio server
+        if hasattr(socketio, 'stop'):
+            socketio.stop()
+        # Exit the process
+        sys.exit(0)
     
     def check_privileges(self):
         """Check if running with sufficient privileges"""
@@ -71,20 +78,27 @@ class CaptivePortalRunner:
         
         try:
             # Run the Flask-SocketIO application
+            logger.info("Server starting on port 80...")
             socketio.run(
                 app,
                 host='0.0.0.0',
                 port=80,
                 debug=False,
                 use_reloader=False,
-                log_output=True
+                log_output=True,
+                allow_unsafe_werkzeug=True  # Allow for production use
             )
+        except KeyboardInterrupt:
+            logger.info("Received KeyboardInterrupt, shutting down...")
+            self.running = False
         except PermissionError:
             logger.error("Permission denied to bind to port 80. Run as root or use a different port.")
             sys.exit(1)
         except Exception as e:
             logger.error(f"Failed to start application: {e}")
             sys.exit(1)
+        finally:
+            logger.info("Application shutdown complete.")
 
 if __name__ == '__main__':
     runner = CaptivePortalRunner()
