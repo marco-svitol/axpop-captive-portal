@@ -335,16 +335,26 @@ network={{
                     
                     logger.debug(f"Found device: {device}, state: {state}, connection: {connection}")
                     
-                    # Check if this is our WiFi interface and it's connected
-                    if device == self.interface_name and state == 'connected':
-                        status = {
-                            'device': device,
-                            'state': state,
-                            'connected_network': connection if connection != '--' else None,
-                            'method': 'nmcli'
-                        }
-                        logger.info(f"WiFi status found: {status}")
-                        return status
+                    # Check specifically for our interface
+                    if device == self.interface_name:
+                        logger.info(f"Found our WiFi interface {device}: state={state}, connection={connection}")
+                        
+                        # Check if it's connected (NetworkManager can use different state names)
+                        if state in ['connected', 'activated', 'up']:
+                            status = {
+                                'device': device,
+                                'state': 'connected',  # Normalize to 'connected'
+                                'connected_network': connection if connection != '--' else None,
+                                'method': 'nmcli'
+                            }
+                            logger.info(f"WiFi status found: {status}")
+                            return status
+                        else:
+                            logger.info(f"WiFi interface {device} is not connected (state: {state})")
+                    
+                    # Also log any WiFi devices for debugging
+                    elif 'wlan' in device:
+                        logger.debug(f"Other WiFi device found: {device}, state={state}, connection={connection}")
                         
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.warning(f"nmcli failed: {e}")
