@@ -149,10 +149,19 @@ class CaptivePortal {
         statusPanel.classList.remove('status-connected', 'status-disconnected', 'status-connecting');
         
         if (status.connected_network) {
-            indicator.textContent = '✅';
-            text.textContent = `Connected to: ${status.connected_network}`;
+            // Check if we have internet connectivity
+            const hasInternet = status.connectivity || false;
+            
+            if (hasInternet) {
+                indicator.textContent = '✅';
+                text.textContent = `Connected to: ${status.connected_network}`;
+                statusPanel.classList.add('status-connected');
+            } else {
+                indicator.textContent = '⚠️';
+                text.textContent = `Connected to: ${status.connected_network} (No Internet)`;
+                statusPanel.classList.add('status-connecting');
+            }
             disconnectBtn.style.display = 'inline-block';
-            statusPanel.classList.add('status-connected');
         } else if (status.state === 'connecting') {
             indicator.textContent = '🔄';
             text.textContent = 'Connecting...';

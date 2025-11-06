@@ -98,6 +98,8 @@ def connection_status():
     """API endpoint to get current connection status"""
     try:
         status = wifi_manager.get_connection_status()
+        # Add internet connectivity check
+        status['connectivity'] = ap_manager.check_connectivity()
         return jsonify({
             'success': True,
             'status': status
