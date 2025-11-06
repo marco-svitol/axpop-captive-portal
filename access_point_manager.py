@@ -15,6 +15,9 @@ from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+#TODO DEBUG
+logger.setLevel(logging.DEBUG)
+
 class AccessPointManager:
     """Manages access point setup and network connectivity monitoring"""
     
@@ -148,14 +151,25 @@ class AccessPointManager:
                                   capture_output=True, text=True, check=True, 
                                   timeout=self.config['connection_timeout'])
             
+            logger.debug(f"nmcli active connections output: {result.stdout}")
+
             # Look for active ethernet or wifi connections
+            active_connections = []
             for line in result.stdout.strip().split('\n'):
                 if line:
-                    conn_type, state = line.split(':')
-                    if conn_type in ['802-3-ethernet', '802-11-wireless'] and state == 'activated':
-                        # Double-check with ping test
-                        return self._test_internet_connection()
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        conn_type, state = parts[0], parts[1]
+                        active_connections.append((conn_type, state))
+                        logger.debug(f"Found connection: type={conn_type}, state={state}")
+                        
+                        if conn_type in ['802-3-ethernet', '802-11-wireless'] and state == 'activated':
+                            # Double-check with ping test
+                            ping_result = self._test_internet_connection()
+                            logger.debug(f"Ping test result: {ping_result}")
+                            return ping_result
             
+            logger.warning(f"No active ethernet/wifi connections found. All connections: {active_connections}")
             return False
             
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
@@ -167,9 +181,11 @@ class AccessPointManager:
         try:
             # Try to ping a reliable DNS server
             result = subprocess.run(['ping', '-c', '1', '-W', '3', '8.8.8.8'], 
-                                  capture_output=True, timeout=5)
+                                capture_output=True, timeout=5)
+            logger.debug(f"Ping result: returncode={result.returncode}, stdout={result.stdout}, stderr={result.stderr}")
             return result.returncode == 0
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            logger.warning(f"Ping test failed: {e}")
             return False
     
     def setup_access_point(self) -> Tuple[bool, str]:
