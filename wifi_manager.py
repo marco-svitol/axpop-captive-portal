@@ -316,28 +316,38 @@ network={{
     
     def get_connection_status(self) -> Dict[str, str]:
         """Get current WiFi connection status"""
+        logger.debug(f"Getting connection status for interface: {self.interface_name}")
+        
         try:
             # Try nmcli first
             result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,STATE,CONNECTION', 
                                    'device', 'status'], 
                                   capture_output=True, text=True, check=True)
             
+            logger.debug(f"nmcli device status output: {result.stdout}")
+            
             for line in result.stdout.strip().split('\n'):
                 parts = line.split(':')
-                if len(parts) >= 3 and 'wifi' in line:
+                if len(parts) >= 3:
                     device = parts[0]
                     state = parts[1]
                     connection = parts[2]
                     
-                    return {
-                        'device': device,
-                        'state': state,
-                        'connected_network': connection if connection != '--' else None,
-                        'method': 'nmcli'
-                    }
+                    logger.debug(f"Found device: {device}, state: {state}, connection: {connection}")
                     
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            pass
+                    # Check if this is our WiFi interface and it's connected
+                    if device == self.interface_name and state == 'connected':
+                        status = {
+                            'device': device,
+                            'state': state,
+                            'connected_network': connection if connection != '--' else None,
+                            'method': 'nmcli'
+                        }
+                        logger.info(f"WiFi status found: {status}")
+                        return status
+                        
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.warning(f"nmcli failed: {e}")
         
         # Fallback to iwconfig
         if self.interface_name:
@@ -345,26 +355,32 @@ network={{
                 result = subprocess.run(['iwconfig', self.interface_name], 
                                       capture_output=True, text=True)
                 
+                logger.debug(f"iwconfig output: {result.stdout}")
+                
                 if 'ESSID:' in result.stdout:
                     match = re.search(r'ESSID:"([^"]*)"', result.stdout)
                     if match:
                         essid = match.group(1)
-                        return {
+                        status = {
                             'device': self.interface_name,
                             'state': 'connected' if essid else 'disconnected',
                             'connected_network': essid if essid else None,
                             'method': 'iwconfig'
                         }
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                pass
+                        logger.info(f"WiFi status from iwconfig: {status}")
+                        return status
+            except (subprocess.CalledProcessError, FileNotFoundError) as e:
+                logger.warning(f"iwconfig failed: {e}")
         
         # Return mock status for development
-        return {
+        status = {
             'device': self.interface_name or 'wlan0',
             'state': 'disconnected',
             'connected_network': None,
             'method': 'mock'
         }
+        logger.warning(f"No WiFi connection found, returning: {status}")
+        return status
     
     def disconnect(self) -> Tuple[bool, str]:
         """Disconnect from current WiFi network"""

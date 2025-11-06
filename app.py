@@ -100,6 +100,7 @@ def connection_status():
         status = wifi_manager.get_connection_status()
         # Add internet connectivity check
         status['connectivity'] = ap_manager.check_connectivity()
+        logger.info(f"WiFi status: {status}")
         return jsonify({
             'success': True,
             'status': status
