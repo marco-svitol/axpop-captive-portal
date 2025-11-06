@@ -319,7 +319,43 @@ network={{
         logger.debug(f"Getting connection status for interface: {self.interface_name}")
         
         try:
-            # Try nmcli first
+            # Use the same method as access point manager that works
+            # First, get active connections
+            result = subprocess.run(['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 
+                                   'connection', 'show', '--active'], 
+                                  capture_output=True, text=True, check=True)
+            
+            logger.debug(f"nmcli active connections output: {result.stdout}")
+            
+            # Look for wireless connections on our interface
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        name = parts[0]
+                        conn_type = parts[1]
+                        device = parts[2]
+                        
+                        logger.debug(f"Found active connection: name={name}, type={conn_type}, device={device}")
+                        
+                        # Check if this is a WiFi connection on our interface
+                        if device == self.interface_name and conn_type == '802-11-wireless':
+                            status = {
+                                'device': device,
+                                'state': 'connected',
+                                'connected_network': name,
+                                'method': 'nmcli-active'
+                            }
+                            logger.info(f"WiFi status found via active connections: {status}")
+                            return status
+            
+            logger.info(f"No active WiFi connection found on interface {self.interface_name}")
+            
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            logger.warning(f"nmcli active connections check failed: {e}")
+        
+        # Fallback: Try device status method
+        try:
             result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,STATE,CONNECTION', 
                                    'device', 'status'], 
                                   capture_output=True, text=True, check=True)
@@ -357,7 +393,7 @@ network={{
                         logger.debug(f"Other WiFi device found: {device}, state={state}, connection={connection}")
                         
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.warning(f"nmcli failed: {e}")
+            logger.warning(f"nmcli device status failed: {e}")
         
         # Fallback to iwconfig
         if self.interface_name:
