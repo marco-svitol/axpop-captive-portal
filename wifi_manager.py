@@ -86,15 +86,22 @@ class WiFiManager:
     def _scan_with_nmcli(self) -> List[Dict[str, str]]:
         """Scan networks using nmcli"""
         try:
+            logger.debug(f"Starting nmcli scan on interface: {self.interface_name}")
+            
             # Rescan for fresh results
-            subprocess.run(['nmcli', 'device', 'wifi', 'rescan'], 
-                         capture_output=True, timeout=10)
+            rescan_result = subprocess.run(['nmcli', 'device', 'wifi', 'rescan'], 
+                                         capture_output=True, text=True, timeout=10)
+            logger.debug(f"Rescan command result: returncode={rescan_result.returncode}, stderr={rescan_result.stderr}")
+            
             time.sleep(2)  # Wait for scan to complete
             
             # Get scan results
+            logger.debug("Getting WiFi scan results...")
             result = subprocess.run(['nmcli', '-t', '-f', 'SSID,SIGNAL,SECURITY', 
                                    'device', 'wifi', 'list'], 
                                   capture_output=True, text=True, check=True, timeout=10)
+            
+            logger.debug(f"nmcli scan output: {result.stdout}")
             
             networks = []
             seen_ssids = set()
@@ -107,17 +114,26 @@ class WiFiManager:
                         signal = parts[1].strip()
                         security = parts[2].strip()
                         
+                        logger.debug(f"Parsed network: SSID='{ssid}', Signal='{signal}', Security='{security}'")
+                        
                         # Skip empty SSIDs and duplicates
                         if ssid and ssid not in seen_ssids:
                             seen_ssids.add(ssid)
-                            networks.append({
+                            network = {
                                 'ssid': ssid,
                                 'signal_strength': signal,
                                 'security': 'secured' if security else 'open',
                                 'encryption': security if security else 'None'
-                            })
+                            }
+                            networks.append(network)
+                            logger.debug(f"Added network to list: {network}")
+                        else:
+                            logger.debug(f"Skipping duplicate or empty SSID: '{ssid}'")
             
-            return sorted(networks, key=lambda x: int(x['signal_strength'] or 0), reverse=True)
+            sorted_networks = sorted(networks, key=lambda x: int(x['signal_strength'] or 0), reverse=True)
+            logger.info(f"Found {len(sorted_networks)} unique networks via nmcli")
+            
+            return sorted_networks
             
         except (subprocess.CalledProcessError, FileNotFoundError) as e:
             logger.error(f"nmcli scan failed: {e}")
