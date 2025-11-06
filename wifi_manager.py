@@ -341,6 +341,8 @@ network={{
                                                            'connection', 'show', '--active'], 
                                                           capture_output=True, text=True, check=True)
                                 
+                                logger.debug(f"Active connection names: {name_result.stdout}")
+                                
                                 for name_line in name_result.stdout.strip().split('\n'):
                                     if name_line:
                                         name_parts = name_line.split(':')
@@ -348,6 +350,8 @@ network={{
                                             name = name_parts[0]
                                             ntype = name_parts[1] 
                                             device = name_parts[2]
+                                            
+                                            logger.debug(f"Checking connection: name={name}, type={ntype}, device={device}")
                                             
                                             if ntype == '802-11-wireless' and device == self.interface_name:
                                                 status = {
@@ -358,10 +362,34 @@ network={{
                                                 }
                                                 logger.info(f"WiFi status found using AP manager style: {status}")
                                                 return status
+                                            elif ntype == '802-11-wireless':
+                                                # Found a WiFi connection but maybe wrong device
+                                                logger.debug(f"WiFi connection on different device: {device} (we want {self.interface_name})")
+                                        
                             except Exception as e:
                                 logger.warning(f"Failed to get connection name: {e}")
                             
-                            # Fallback: return with unknown network name
+                            # Try alternative method - get connection name via iwconfig
+                            try:
+                                iw_result = subprocess.run(['iwconfig', self.interface_name], 
+                                                         capture_output=True, text=True)
+                                if 'ESSID:' in iw_result.stdout:
+                                    match = re.search(r'ESSID:"([^"]*)"', iw_result.stdout)
+                                    if match:
+                                        essid = match.group(1)
+                                        if essid and essid != 'off/any':
+                                            status = {
+                                                'device': self.interface_name,
+                                                'state': 'connected',
+                                                'connected_network': essid,
+                                                'method': 'nmcli-iwconfig-combo'
+                                            }
+                                            logger.info(f"WiFi status found via iwconfig: {status}")
+                                            return status
+                            except Exception as e:
+                                logger.warning(f"iwconfig fallback failed: {e}")
+                            
+                            # Final fallback: return with unknown network name
                             status = {
                                 'device': self.interface_name,
                                 'state': 'connected',
