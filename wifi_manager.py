@@ -12,6 +12,8 @@ import time
 from typing import List, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
+#TODO DEBUG
+logger.setLevel(logging.DEBUG)
 
 class WiFiManager:
     """WiFi management class using NetworkManager CLI tools"""

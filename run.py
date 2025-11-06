@@ -29,6 +29,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+#TODO DEBUG
+logger.setLevel(logging.DEBUG)
 
 class CaptivePortalRunner:
     def __init__(self):
