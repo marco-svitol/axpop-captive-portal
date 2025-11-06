@@ -319,82 +319,64 @@ network={{
         logger.debug(f"Getting connection status for interface: {self.interface_name}")
         
         try:
-            # Use the same method as access point manager that works
-            # First, get active connections
-            result = subprocess.run(['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 
-                                   'connection', 'show', '--active'], 
-                                  capture_output=True, text=True, check=True)
+            # Use the exact same method as access_point_manager.check_connectivity()
+            # which we know is working from the logs
+            result = subprocess.run(['nmcli', '-t', '-f', 'TYPE,STATE', 'connection', 'show', '--active'], 
+                                  capture_output=True, text=True, check=True, timeout=10)
             
-            logger.debug(f"nmcli active connections output: {result.stdout}")
+            logger.debug(f"nmcli active connections (same as AP manager): {result.stdout}")
             
-            # Look for wireless connections on our interface
+            # Look for active ethernet or wifi connections (same logic as AP manager)
             for line in result.stdout.strip().split('\n'):
                 if line:
                     parts = line.split(':')
-                    if len(parts) >= 3:
-                        name = parts[0]
-                        conn_type = parts[1]
-                        device = parts[2]
+                    if len(parts) >= 2:
+                        conn_type, state = parts[0], parts[1]
+                        logger.debug(f"Found connection type={conn_type}, state={state}")
                         
-                        logger.debug(f"Found active connection: name={name}, type={conn_type}, device={device}")
-                        
-                        # Check if this is a WiFi connection on our interface
-                        if device == self.interface_name and conn_type == '802-11-wireless':
+                        if conn_type == '802-11-wireless' and state == 'activated':
+                            # We found a WiFi connection! Now get the connection name
+                            try:
+                                name_result = subprocess.run(['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 
+                                                           'connection', 'show', '--active'], 
+                                                          capture_output=True, text=True, check=True)
+                                
+                                for name_line in name_result.stdout.strip().split('\n'):
+                                    if name_line:
+                                        name_parts = name_line.split(':')
+                                        if len(name_parts) >= 3:
+                                            name = name_parts[0]
+                                            ntype = name_parts[1] 
+                                            device = name_parts[2]
+                                            
+                                            if ntype == '802-11-wireless' and device == self.interface_name:
+                                                status = {
+                                                    'device': device,
+                                                    'state': 'connected',
+                                                    'connected_network': name,
+                                                    'method': 'nmcli-ap-style'
+                                                }
+                                                logger.info(f"WiFi status found using AP manager style: {status}")
+                                                return status
+                            except Exception as e:
+                                logger.warning(f"Failed to get connection name: {e}")
+                            
+                            # Fallback: return with unknown network name
                             status = {
-                                'device': device,
+                                'device': self.interface_name,
                                 'state': 'connected',
-                                'connected_network': name,
-                                'method': 'nmcli-active'
+                                'connected_network': 'Unknown Network',
+                                'method': 'nmcli-ap-style-fallback'
                             }
-                            logger.info(f"WiFi status found via active connections: {status}")
+                            logger.info(f"WiFi connected but name unknown: {status}")
                             return status
             
-            logger.info(f"No active WiFi connection found on interface {self.interface_name}")
+            logger.info(f"No active WiFi connection found via AP manager method")
             
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.warning(f"nmcli active connections check failed: {e}")
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            logger.warning(f"nmcli AP-style check failed: {e}")
         
-        # Fallback: Try device status method
-        try:
-            result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,STATE,CONNECTION', 
-                                   'device', 'status'], 
-                                  capture_output=True, text=True, check=True)
-            
-            logger.debug(f"nmcli device status output: {result.stdout}")
-            
-            for line in result.stdout.strip().split('\n'):
-                parts = line.split(':')
-                if len(parts) >= 3:
-                    device = parts[0]
-                    state = parts[1]
-                    connection = parts[2]
-                    
-                    logger.debug(f"Found device: {device}, state: {state}, connection: {connection}")
-                    
-                    # Check specifically for our interface
-                    if device == self.interface_name:
-                        logger.info(f"Found our WiFi interface {device}: state={state}, connection={connection}")
-                        
-                        # Check if it's connected (NetworkManager can use different state names)
-                        if state in ['connected', 'activated', 'up']:
-                            status = {
-                                'device': device,
-                                'state': 'connected',  # Normalize to 'connected'
-                                'connected_network': connection if connection != '--' else None,
-                                'method': 'nmcli'
-                            }
-                            logger.info(f"WiFi status found: {status}")
-                            return status
-                        else:
-                            logger.info(f"WiFi interface {device} is not connected (state: {state})")
-                    
-                    # Also log any WiFi devices for debugging
-                    elif 'wlan' in device:
-                        logger.debug(f"Other WiFi device found: {device}, state={state}, connection={connection}")
-                        
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            logger.warning(f"nmcli device status failed: {e}")
-        
+        # Original fallback methods...
         # Fallback to iwconfig
         if self.interface_name:
             try:
@@ -407,14 +389,15 @@ network={{
                     match = re.search(r'ESSID:"([^"]*)"', result.stdout)
                     if match:
                         essid = match.group(1)
-                        status = {
-                            'device': self.interface_name,
-                            'state': 'connected' if essid else 'disconnected',
-                            'connected_network': essid if essid else None,
-                            'method': 'iwconfig'
-                        }
-                        logger.info(f"WiFi status from iwconfig: {status}")
-                        return status
+                        if essid and essid != 'off/any':
+                            status = {
+                                'device': self.interface_name,
+                                'state': 'connected',
+                                'connected_network': essid,
+                                'method': 'iwconfig'
+                            }
+                            logger.info(f"WiFi status from iwconfig: {status}")
+                            return status
             except (subprocess.CalledProcessError, FileNotFoundError) as e:
                 logger.warning(f"iwconfig failed: {e}")
         
