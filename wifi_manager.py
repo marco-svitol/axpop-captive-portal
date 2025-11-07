@@ -18,14 +18,16 @@ logger.setLevel(logging.DEBUG)
 class WiFiManager:
     """WiFi management class using NetworkManager CLI tools"""
     
-    def __init__(self, interface_name: Optional[str] = None):
+    def __init__(self, interface_name: Optional[str] = None, ap_manager=None):
         if interface_name:
             self.interface_name = interface_name
             logger.info(f"WiFiManager using specified interface: {self.interface_name}")
         else:
             self.interface_name = self._get_wireless_interface()
             logger.info(f"WiFiManager auto-detected interface: {self.interface_name}")
-    
+        
+        # Store reference to AP manager to check for AP connections
+        self.ap_manager = ap_manager
     def set_interface(self, interface_name: str) -> None:
         """Set the WiFi interface to use for operations"""
         self.interface_name = interface_name
@@ -371,6 +373,21 @@ network={{
                                             
                                             logger.debug(f"Checking connection: name={name}, type={ntype}, device={device}")
                                             
+                                            # Skip if this is the Pi's own AP connection
+                                            if self.ap_manager and name == self.ap_manager.ap_connection_name:
+                                                logger.debug(f"Skipping AP connection '{name}' - this is the Pi's own hotspot")
+                                                continue
+                                                
+                                            # Skip if this matches the AP SSID (another way to detect own AP)
+                                            if self.ap_manager and hasattr(self.ap_manager, 'config') and name == self.ap_manager.config.get('ap_ssid'):
+                                                logger.debug(f"Skipping AP SSID '{name}' - this is the Pi's own hotspot")
+                                                continue
+                                                
+                                            # Skip if this is on the AP interface (shouldn't be a client connection)
+                                            if self.ap_manager and device == self.ap_manager.ap_device:
+                                                logger.debug(f"Skipping connection '{name}' on AP interface '{device}'")
+                                                continue
+                                            
                                             if ntype == '802-11-wireless' and device == self.interface_name:
                                                 status = {
                                                     'device': device,
@@ -378,7 +395,7 @@ network={{
                                                     'connected_network': name,
                                                     'method': 'nmcli-ap-style'
                                                 }
-                                                logger.info(f"WiFi status found using AP manager style: {status}")
+                                                logger.info(f"WiFi client status found: {status}")
                                                 return status
                                             elif ntype == '802-11-wireless':
                                                 # Log wrong interface but don't use it
@@ -397,6 +414,11 @@ network={{
                                     if match:
                                         essid = match.group(1)
                                         if essid and essid != 'off/any':
+                                            # Skip if this is the Pi's own AP SSID
+                                            if self.ap_manager and hasattr(self.ap_manager, 'config') and essid == self.ap_manager.config.get('ap_ssid'):
+                                                logger.debug(f"Skipping iwconfig ESSID '{essid}' - this is the Pi's own hotspot")
+                                                break
+                                                
                                             status = {
                                                 'device': self.interface_name,
                                                 'state': 'connected',
@@ -437,6 +459,16 @@ network={{
                     if match:
                         essid = match.group(1)
                         if essid and essid != 'off/any':
+                            # Skip if this is the Pi's own AP SSID
+                            if self.ap_manager and hasattr(self.ap_manager, 'config') and essid == self.ap_manager.config.get('ap_ssid'):
+                                logger.debug(f"Skipping main iwconfig ESSID '{essid}' - this is the Pi's own hotspot")
+                                return {
+                                    'device': self.interface_name or 'wlan0',
+                                    'state': 'disconnected',
+                                    'connected_network': None,
+                                    'method': 'iwconfig-filtered'
+                                }
+                                
                             status = {
                                 'device': self.interface_name,
                                 'state': 'connected',

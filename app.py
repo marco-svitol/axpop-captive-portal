@@ -29,7 +29,7 @@ try:
     ap_manager = AccessPointManager()
     # Initialize WiFiManager with the client interface from AP manager
     client_interface = ap_manager.get_client_wlan_interface()
-    wifi_manager = WiFiManager(interface_name=client_interface)
+    wifi_manager = WiFiManager(interface_name=client_interface, ap_manager=ap_manager)
     logger.info(f"Using {client_interface} for WiFi client operations and {ap_manager.ap_device} for AP")
 except ValueError as e:
     logger.error(f"WiFi interface validation failed: {e}")
