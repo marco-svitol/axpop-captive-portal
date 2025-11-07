@@ -255,6 +255,28 @@ def stop_monitoring():
             'error': str(e)
         }), 500
 
+@app.route('/api/interfaces/enforce', methods=['POST'])
+def enforce_interfaces():
+    """API endpoint to enforce correct interface assignment"""
+    try:
+        success = ap_manager.enforce_interface_assignment()
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Interface assignment enforced successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to enforce interface assignment'
+            }), 500
+    except Exception as e:
+        logger.error(f"Failed to enforce interfaces: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/interfaces')
 def get_interfaces():
     """API endpoint to get WiFi interface information"""

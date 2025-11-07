@@ -381,19 +381,9 @@ network={{
                                                 logger.info(f"WiFi status found using AP manager style: {status}")
                                                 return status
                                             elif ntype == '802-11-wireless':
-                                                # Found a WiFi connection on a different device
-                                                # This might be the actual client connection
-                                                logger.warning(f"WiFi connection '{name}' found on {device}, but WiFi manager expects {self.interface_name}")
-                                                
-                                                # Use this connection anyway since it's the active WiFi
-                                                status = {
-                                                    'device': device,
-                                                    'state': 'connected',
-                                                    'connected_network': name,
-                                                    'method': 'nmcli-ap-style-alternate-device'
-                                                }
-                                                logger.info(f"Using WiFi connection from alternate device: {status}")
-                                                return status
+                                                # Log wrong interface but don't use it
+                                                logger.warning(f"WiFi connection '{name}' found on wrong interface '{device}' (expected '{self.interface_name}')")
+                                                logger.warning("Run interface enforcement to fix this: POST /api/interfaces/enforce")
                                         
                             except Exception as e:
                                 logger.warning(f"Failed to get connection name: {e}")

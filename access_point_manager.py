@@ -35,6 +35,10 @@ class AccessPointManager:
         # Find and validate WiFi devices
         self._validate_wlan_interfaces()
         
+        # Enforce correct interface assignment
+        logger.info("Enforcing WiFi interface assignment per configuration...")
+        self.enforce_interface_assignment()
+        
         logger.info(f"AccessPointManager initialized - AP device: {self.ap_device}, Client device: {self.client_device}")
     
     def _load_config(self) -> Dict:
@@ -138,6 +142,66 @@ class AccessPointManager:
     def get_client_wlan_interface(self) -> str:
         """Get the WiFi interface that should be used for client connections"""
         return self.client_device
+    
+    def enforce_interface_assignment(self) -> bool:
+        """Enforce that WiFi connections use the correct interfaces as per configuration"""
+        try:
+            # Check if there are any WiFi connections on the wrong interface
+            result = subprocess.run(['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 
+                                   'connection', 'show', '--active'], 
+                                  capture_output=True, text=True, check=True)
+            
+            wrong_connections = []
+            for line in result.stdout.strip().split('\n'):
+                if line:
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        name, conn_type, device = parts[0], parts[1], parts[2]
+                        
+                        # Check if WiFi connection is on AP interface (should be on client interface)
+                        if conn_type == '802-11-wireless' and device == self.ap_device:
+                            wrong_connections.append((name, device))
+                            logger.warning(f"Found WiFi client connection '{name}' on AP interface '{device}' - should be on '{self.client_device}'")
+            
+            if wrong_connections:
+                logger.info(f"Enforcing interface assignment: moving {len(wrong_connections)} connection(s) to correct interface")
+                
+                for conn_name, current_device in wrong_connections:
+                    # Disconnect from wrong interface
+                    try:
+                        subprocess.run(['nmcli', 'connection', 'down', conn_name], 
+                                     capture_output=True, check=True, timeout=10)
+                        logger.info(f"Disconnected '{conn_name}' from {current_device}")
+                        
+                        # Wait a moment
+                        time.sleep(2)
+                        
+                        # Modify connection to use correct interface
+                        subprocess.run(['nmcli', 'connection', 'modify', conn_name, 
+                                      'connection.interface-name', self.client_device], 
+                                     capture_output=True, check=True, timeout=10)
+                        logger.info(f"Modified '{conn_name}' to use interface {self.client_device}")
+                        
+                        # Reconnect on correct interface
+                        subprocess.run(['nmcli', 'connection', 'up', conn_name], 
+                                     capture_output=True, check=True, timeout=30)
+                        logger.info(f"Reconnected '{conn_name}' on {self.client_device}")
+                        
+                    except subprocess.CalledProcessError as e:
+                        logger.error(f"Failed to move connection '{conn_name}': {e}")
+                        continue
+                    except subprocess.TimeoutExpired as e:
+                        logger.error(f"Timeout while moving connection '{conn_name}': {e}")
+                        continue
+                
+                return True
+            else:
+                logger.debug("All WiFi connections are on correct interfaces")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Failed to enforce interface assignment: {e}")
+            return False
     
     def get_available_wlan_devices(self) -> list:
         """Get list of all available WiFi devices"""
